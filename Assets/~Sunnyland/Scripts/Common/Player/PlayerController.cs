@@ -49,6 +49,8 @@ namespace SunnyLand
         private Vector3 moveDirection;
         private int currentJump = 0;
 
+        private float inputH, inputV;
+
         private float vertical, horizontal;
 
         // References
@@ -68,8 +70,8 @@ namespace SunnyLand
         // Update is called once per frame
         void Update()
         {
-            // Apply gravity to move direction
-            moveDirection.y += Physics.gravity.y * Time.deltaTime;
+            PerformMove();
+            PerformJump();
         }
 
         void FixedUpdate()
@@ -86,6 +88,43 @@ namespace SunnyLand
         #endregion
 
         #region Custom Functions
+        void PerformMove()
+        {
+            if (isOnSlope && // If the Player is standing on a slope AND
+                inputH == 0 && // No input is on horizontal AND
+                isGrounded) // Player is grounded
+            {
+                // Cancel the velocity
+                rigid.velocity = Vector3.zero;
+            }
+
+            Vector3 right = Vector3.Cross(groundNormal, Vector3.back);
+            rigid.AddForce(right * inputH * speed);
+
+            // Limit the velocity max velocity
+            LimitVelocity();
+        }
+        
+        void PerformJump()
+        {
+            // If Player is Jumping
+            if (isJumping)
+            {
+                // If Player is allowed to Jump
+                if (currentJump < maxJumpCount)
+                {
+                    // Increase the jump count
+                    currentJump++;
+
+                    // Perform jump logic
+                    rigid.AddForce(Vector2.up * jumpHeight, ForceMode2D.Impulse);
+                }
+
+                // Reset jump input
+                isJumping = false;
+            }
+        }
+
         // Check to see if ray hit object is ground
         bool CheckSlope(RaycastHit2D hit)
         {
@@ -103,6 +142,8 @@ namespace SunnyLand
             {
                 return true;
             }
+
+            return false;
         }
 
         bool CheckGround(RaycastHit2D hit)
@@ -165,7 +206,20 @@ namespace SunnyLand
 
             foreach (var hit in hits)
             {
-                if(CheckGround(hit))
+                // Detect if on a slope
+                if (Mathf.Abs(hit.normal.x) > 0.1f)
+                {
+                    // Set gravity to zero
+                    rigid.gravityScale = 0;
+                }
+
+                else
+                {
+                    // Set gravity to one
+                    rigid.gravityScale = 1;
+                }
+
+                if (CheckGround(hit))
                 {
                     // We found the ground! So exit the function
                     break;
@@ -194,8 +248,27 @@ namespace SunnyLand
             }
         }
 
+        void EnablePhysics()
+        {
+            rigid.simulated = true;
+            rigid.gravityScale = 1;
+        }
+
+        void DisablePhysics()
+        {
+            rigid.simulated = false;
+            rigid.gravityScale = 0;
+        }
+
         public void Jump()
         {
+            isJumping = true;
+            
+            if (onJump != null)
+            {
+                onJump.Invoke();
+            }
+
             // If currentJump is less than max Jump
                 // Increment currentJump
                 // Add force to player (using Impulse)
@@ -203,13 +276,18 @@ namespace SunnyLand
 
         public void Move(float horizontal)
         {
-            // If horizontal > 0
-                // Flip Character
-            // If horizontal < 0
-                // Flip Character
+            if (horizontal != 0)
+            {
+                rend.flipX = horizontal < 0;
+            }
 
-            // Add force to player in the right direction
-            // Limit Velocity
+            inputH = horizontal;
+
+            // Invoke event
+            if (onMove != null)
+            {
+                onMove.Invoke(inputH);
+            }
         }
 
         public void Climb()
