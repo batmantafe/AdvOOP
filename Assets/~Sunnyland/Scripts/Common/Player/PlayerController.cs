@@ -10,6 +10,10 @@ namespace SunnyLand
 
     public class PlayerController : MonoBehaviour
     {
+        public int health = 100;
+        public int damage = 50;
+
+        [Header("Movement")]
         public float speed = 5f;
         public float maxVelocity = 2f;       
 
@@ -82,12 +86,24 @@ namespace SunnyLand
 
         void OnDrawGizmos()
         {
+            // Drawing the ground ray
             Ray groundRay = new Ray(transform.position, Vector3.down);
             Gizmos.DrawLine(groundRay.origin, groundRay.origin + groundRay.direction * rayDistance);
+
+            // Drawing the 'right' ray
+            Vector3 right = Vector3.Cross(groundNormal, Vector3.forward);
+            Gizmos.color = Color.blue;
+            Gizmos.DrawLine(transform.position - right,
+                            transform.position + right);
         }
         #endregion
 
         #region Custom Functions
+        void PerformClimb()
+        {
+
+        }
+
         void PerformMove()
         {
             if (isOnSlope && // If the Player is standing on a slope AND
@@ -238,6 +254,11 @@ namespace SunnyLand
             }
         }
 
+        void DetectClimbable()
+        {
+            
+        }
+
         void LimitVelocity()
         {
             // If Rigid's velocity (magnitude) is greater than maxVelocity
@@ -258,6 +279,11 @@ namespace SunnyLand
         {
             rigid.simulated = false;
             rigid.gravityScale = 0;
+        }
+
+        void UpdateCollider()
+        {
+
         }
 
         public void Jump()
@@ -290,10 +316,56 @@ namespace SunnyLand
             }
         }
 
-        public void Climb()
+        public void Climb(float vertical)
         {
-            // Challenge
+            
         }
         #endregion
+
+        public void Crouch()
+        {
+            isCrouching = true;
+
+            // Invoke event
+            if (onCrouchChanged != null)
+            {
+                onCrouchChanged.Invoke(isCrouching);
+            }
+        }
+
+        public void UnCrouch()
+        {
+            isCrouching = false;
+
+            // Invoke event
+            if (onCrouchChanged != null)
+            {
+                onCrouchChanged.Invoke(isCrouching);
+            }
+        }
+
+        public void Hurt(int damage, Vector2? hitNormal = null)
+        {
+            Vector2 force = Vector2.up;
+
+            if (hitNormal != null) // If a hitNormal exists
+            {
+                // Use the hit normal as a direction
+                force = hitNormal.Value;
+            }
+
+            // Deal damage to player
+            health -= damage;
+
+            // Add force in the hit direction
+            rigid.AddForce(force * damage, ForceMode2D.Impulse);
+
+            // Invoke event
+            if (onHurt != null)
+            {
+                // Play hurt sound or animation
+                onHurt.Invoke();
+            }
+        }
     }
 }
