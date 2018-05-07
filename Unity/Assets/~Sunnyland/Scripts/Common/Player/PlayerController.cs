@@ -38,6 +38,7 @@ namespace SunnyLand
         [Header("References")]
         public Collider2D defaultCollider;
         public Collider2D crouchCollider;
+        public Collider2D currentCollider;
 
         // Delegates
         public EventCallback onJump;
@@ -61,6 +62,7 @@ namespace SunnyLand
         private SpriteRenderer rend;
         private Animator anim;
         private Rigidbody2D rigid;
+        public Climbable climbObject;
 
         #region Unity Functions
         // Use this for initialization
@@ -74,14 +76,18 @@ namespace SunnyLand
         // Update is called once per frame
         void Update()
         {
+            PerformClimb();
             PerformMove();
             PerformJump();
         }
 
         void FixedUpdate()
         {
+            UpdateCollider();
+            
             // Feel for the ground
             DetectGround();
+            DetectClimbable();
         }
 
         void OnDrawGizmos()
@@ -101,7 +107,51 @@ namespace SunnyLand
         #region Custom Functions
         void PerformClimb()
         {
+            // Check if:
+            if (inputV != 0 && // Player is pressing UP or DOWN
+                climbObject != null) // Player is in front of a climbable
+            {
+                bool isAtTop = climbObject.IsAtTop(transform.position);
+                bool isAtBottom = climbObject.IsAtBottom(transform.position);
+                bool isAtTopAndPressingUp = isAtTop && inputV > 0;
+                bool isAtBottomAndPressingDown = isAtBottom && inputV < 0;
 
+                // Check if the Player is:
+                if (!isAtTopAndPressingUp && // not trying to climb up
+                    !isAtBottomAndPressingDown && // not trying to climb down
+                    !isClimbing) // not climbing
+                {
+                    // Start climbing
+                    isClimbing = true;
+
+                    // Invoke event
+                    if (onClimbChanged != null)
+                    {
+                        onClimbChanged.Invoke(isClimbing);
+                    }
+                }
+
+                if (isAtTopAndPressingUp || isAtBottomAndPressingDown)
+                {
+                    // Stop climbing!
+                    StopClimbing();
+                }
+            }
+
+            // Is the player climbing?
+            if (isClimbing &&
+                climbObject != null) // Note, if this is null, there's an error
+            {
+                // Make sure physics is disabled before moving the player
+                DisablePhysics();
+
+                // Logic for moving the player up and down climbable
+                float x = climbObject.GetX();
+                Vector3 position = transform.position;
+                position.x = x;
+                position.y += inputV * climbSpeed * Time.deltaTime;
+                transform.position = position;
+            }
         }
 
         void PerformMove()
@@ -256,7 +306,29 @@ namespace SunnyLand
 
         void DetectClimbable()
         {
-            
+            // If we're already climbing, return
+            if (isClimbing) return;
+
+            // Otherwise, detect climbable
+            // Perform a box cast that is the size of the player's collision
+            Collider2D[] hits = Physics2D.OverlapBoxAll(transform.position,
+                                    currentCollider.bounds.size, 0);
+
+            // Loop through all hits
+            foreach (var hit in hits)
+            {
+                // Check if:
+                if (hit != null && // Something was hit
+                    hit.isTrigger) // The hit object is a trigger
+                {
+                    // We have found our climbable!
+                    climbObject = hit.GetComponent<Climbable>();
+                    return;
+                }
+            }
+
+            // No Climbables were found
+            climbObject = null;
         }
 
         void LimitVelocity()
@@ -281,9 +353,40 @@ namespace SunnyLand
             rigid.gravityScale = 0;
         }
 
+        void StopClimbing()
+        {
+            climbObject = null;
+
+            // We are no longer climbing
+            isClimbing = false;
+
+            if (onClimbChanged != null)
+            {
+                onClimbChanged.Invoke(isClimbing);
+            }
+
+            // Re-enable physics
+            EnablePhysics();
+        }
+
         void UpdateCollider()
         {
+            // If crouching
+            if (isCrouching)
+            {
+                // Set current to crouch collider
+                defaultCollider.enabled = false;
+                currentCollider = crouchCollider;
+            }
 
+            else
+            {
+                // Set current to default collider
+                crouchCollider.enabled = false;
+                currentCollider = defaultCollider;
+            }
+
+            currentCollider.enabled = true;
         }
 
         public void Jump()
@@ -318,7 +421,13 @@ namespace SunnyLand
 
         public void Climb(float vertical)
         {
-            
+            inputV = vertical;
+
+            // Invoke event
+            if (onClimb != null)
+            {
+                onClimb.Invoke(vertical);
+            }
         }
         #endregion
 

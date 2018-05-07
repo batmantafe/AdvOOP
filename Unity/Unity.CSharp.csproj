@@ -101,6 +101,7 @@
     <Compile Include="Assets\Tiled2Unity\Scripts\Runtime\TiledMap.cs" />
     <Compile Include="Assets\Tiled2Unity\Scripts\Runtime\TmxObject.cs" />
     <Compile Include="Assets\~Sunnyland\Scripts\Common\Delegates.cs" />
+    <Compile Include="Assets\~Sunnyland\Scripts\Common\Environment\Climbable.cs" />
     <Compile Include="Assets\~Sunnyland\Scripts\Common\Player\PlayerAnim.cs" />
     <Compile Include="Assets\~Sunnyland\Scripts\Common\Player\PlayerAudio.cs" />
     <Compile Include="Assets\~Sunnyland\Scripts\Common\Player\PlayerController.cs" />
